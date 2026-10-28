@@ -202,8 +202,8 @@
     // ------------------------------------------------------------------
     // Supabase credentials. Leave empty for local demo mode.
     // ------------------------------------------------------------------
-    const SUPABASE_URL = "";
-    const SUPABASE_ANON_KEY = "";
+    const SUPABASE_URL = "https://vjlegcbvwugjccuvdtws.supabase.co";
+    const SUPABASE_ANON_KEY = "sb_publishable_PvS1r2N3r88yGJc33gMLxA_XdNvfuIe";
     const db = (SUPABASE_URL && window.supabase) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
 
     const KEY = { settings: "vt_settings", products: "vt_products", orders: "vt_orders", cart: "vt_cart" };
