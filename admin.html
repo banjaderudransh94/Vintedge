@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vintedge Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg: #f4f4f5; --card: #ffffff; --ink: #111113; --mu: #71717a; --line: #e4e4e7;
+      --ok: #16a34a; --warn: #d97706; --bad: #dc2626; --blue: #2563eb; --ease: cubic-bezier(0.32, 0.72, 0, 1);
+    }
+    * { box-sizing: border-box; margin: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body { background: var(--bg); color: var(--ink); font: 500 14px/1.5 "Inter", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+    button, input, select, textarea { font: inherit; color: inherit; }
+    button { cursor: pointer; border: 0; background: none; }
+    button:active { transform: scale(0.97); }
+    .hide { display: none !important; }
+    .muted { color: var(--mu); }
+
+    /* ---------- Controls ---------- */
+    .btn { background: var(--ink); color: #fff; padding: 0.7rem 1.3rem; border-radius: 999px; font-weight: 700; min-height: 44px; }
+    .btn.sm { padding: 0.45rem 1rem; min-height: 36px; font-size: 13px; }
+    .ghost { border: 1.5px solid var(--line); background: var(--card); padding: 0.55rem 1.1rem; border-radius: 999px; font-weight: 700; min-height: 44px; }
+    .ghost.sm { padding: 0.4rem 0.9rem; min-height: 36px; font-size: 13px; }
+    .danger { color: var(--bad); }
+    label { display: block; margin-top: 1rem; font-size: 12px; font-weight: 700; color: var(--mu); }
+    input[type=text], input[type=number], input[type=password], input[type=email], input[type=search], select, textarea {
+      width: 100%; margin-top: 0.3rem; padding: 0.75rem 0.9rem; border: 1.5px solid var(--line); border-radius: 12px; background: #fff; outline: none; font-size: 16px; color: var(--ink);
+    }
+    input:focus, select:focus, textarea:focus { border-color: var(--ink); }
+    input[type=color] { width: 56px; height: 44px; margin-top: 0.3rem; border: 1.5px solid var(--line); border-radius: 12px; padding: 3px; background: #fff; cursor: pointer; }
+    .check { display: flex; align-items: center; gap: 0.6rem; font-size: 14px; color: var(--ink); }
+    .check input { width: 20px; height: 20px; accent-color: var(--ink); }
+    .row2 { display: grid; gap: 0 1rem; }
+    .lbl { font-size: 12px; font-weight: 700; color: var(--mu); }
+    .hint { font-size: 12px; color: var(--mu); margin-top: 0.3rem; font-weight: 500; }
+
+    /* ---------- Login ---------- */
+    #login { max-width: 380px; margin: 12vh auto; padding: 0 1.2rem; }
+    .card { background: var(--card); border-radius: 18px; padding: 1.2rem; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06); }
+    .err { color: var(--bad); font-size: 13px; margin-top: 0.7rem; }
+
+    /* ---------- Shell: bottom tab bar on phones, sidebar on desktop ---------- */
+    .nav { position: fixed; z-index: 10; left: 0; right: 0; bottom: 0; display: grid; grid-template-columns: repeat(5, 1fr); background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); border-top: 1px solid var(--line); padding-bottom: env(safe-area-inset-bottom, 0px); }
+    .nav button { position: relative; display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 0.5rem 0 0.45rem; font-size: 11px; font-weight: 700; color: var(--mu); min-height: 56px; }
+    .nav button .ic { font-size: 20px; line-height: 1.2; }
+    .nav button.on { color: var(--ink); }
+    .nav button i { position: absolute; top: 4px; left: 54%; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 9px; background: var(--bad); color: #fff; font-size: 10px; font-style: normal; display: grid; place-items: center; }
+    .top { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 0.8rem; padding: calc(0.7rem + env(safe-area-inset-top, 0px)) 1rem 0.7rem; background: rgba(244, 244, 245, 0.85); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px); border-bottom: 1px solid var(--line); }
+    .top b { flex: 1; font-size: 17px; font-weight: 800; letter-spacing: -0.02em; }
+    .top a { color: var(--ink); font-weight: 700; text-decoration: none; font-size: 13px; }
+    main { max-width: 1000px; margin: 0 auto; padding: 1.2rem 1rem calc(6.5rem + env(safe-area-inset-bottom, 0px)); }
+    h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; }
+    h3 { font-size: 12px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mu); margin-bottom: 0.2rem; }
+    .head { display: flex; align-items: center; justify-content: space-between; gap: 0.8rem; margin-bottom: 1rem; }
+    .stack > * + * { margin-top: 1rem; }
+
+    /* ---------- Dashboard ---------- */
+    .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 0.7rem; }
+    .stat { padding: 1rem; }
+    .stat small { color: var(--mu); font-weight: 700; font-size: 12px; }
+    .stat b { display: block; font-size: 24px; font-weight: 800; letter-spacing: -0.02em; margin-top: 0.2rem; }
+    .stat.alert b { color: var(--warn); }
+    .chart { display: flex; align-items: flex-end; gap: 0.5rem; height: 140px; margin-top: 0.8rem; }
+    .bar { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; height: 100%; gap: 0.3rem; font-size: 11px; color: var(--mu); font-weight: 700; }
+    .bar div { width: 100%; max-width: 44px; background: var(--ink); border-radius: 8px 8px 3px 3px; min-height: 3px; }
+    .bar b { color: var(--ink); font-size: 12px; }
+
+    /* ---------- Orders ---------- */
+    .chips { display: flex; gap: 0.5rem; overflow-x: auto; padding-bottom: 0.3rem; margin-bottom: 0.8rem; scrollbar-width: none; }
+    .chips::-webkit-scrollbar { display: none; }
+    .chips button { flex: none; padding: 0.5rem 1rem; border-radius: 999px; border: 1.5px solid var(--line); background: var(--card); font-weight: 700; font-size: 13px; }
+    .chips button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+    .order { padding: 1rem; margin-bottom: 0.8rem; }
+    .oh { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem; }
+    .oh b { font-size: 15px; }
+    .st { padding: 0.2rem 0.7rem; border-radius: 999px; font-size: 12px; font-weight: 800; }
+    .st.Pending { background: #fef3c7; color: #92400e; }
+    .st.Shipped { background: #dbeafe; color: #1e40af; }
+    .st.Delivered { background: #dcfce7; color: #166534; }
+    .st.Cancelled { background: #fee2e2; color: #991b1b; }
+    .order ul { list-style: none; padding: 0; margin: 0.7rem 0; border-top: 1px solid var(--line); }
+    .order li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.4rem 0; border-bottom: 1px solid var(--line); }
+    .order a { color: var(--blue); font-weight: 700; text-decoration: none; }
+    .oa { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-top: 0.8rem; }
+    .oa select { width: auto; margin: 0; padding: 0.55rem 0.8rem; }
+    .recent { display: flex; justify-content: space-between; align-items: center; gap: 0.6rem; padding: 0.7rem 0; border-bottom: 1px solid var(--line); }
+
+    /* ---------- Products ---------- */
+    .piece { display: flex; flex-wrap: wrap; align-items: center; gap: 0.8rem; padding: 0.8rem; margin-bottom: 0.7rem; }
+    .thumb { width: 64px; height: 80px; border-radius: 12px; background: #ecebe8; flex: none; overflow: hidden; }
+    .thumb img { width: 100%; height: 100%; object-fit: contain; }
+    .pinfo { flex: 1; min-width: 150px; }
+    .pinfo b { font-size: 15px; }
+    .pinfo small { display: block; color: var(--mu); }
+    .seg { display: inline-flex; border: 1.5px solid var(--line); border-radius: 999px; padding: 3px; }
+    .seg button { padding: 0.35rem 0.9rem; border-radius: 999px; font-size: 12px; font-weight: 700; color: var(--mu); min-height: 34px; }
+    .seg button.on { background: var(--ok); color: #fff; }
+    .seg button.on.so { background: var(--bad); }
+    .pa { display: flex; gap: 0.4rem; margin-left: auto; }
+
+    /* ---------- Forms ---------- */
+    .slot { display: grid; place-items: center; width: 100%; aspect-ratio: 4 / 3; margin: 0.3rem 0 0; border: 1.5px dashed var(--line); border-radius: 14px; background: var(--bg); overflow: hidden; cursor: pointer; font-size: 26px; color: var(--mu); }
+    .slot img { width: 100%; height: 100%; object-fit: contain; }
+    .slotbox { position: relative; max-width: 220px; }
+    .slotbox .x, .imgs .x { position: absolute; top: 5px; right: 5px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); font-size: 11px; }
+    .imgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 0.4rem; }
+    .imgs .ib { position: relative; }
+    .imgs .slot { aspect-ratio: 3 / 4; font-size: 22px; }
+    .imgs .main { position: absolute; left: 5px; bottom: 5px; padding: 0.1rem 0.5rem; border-radius: 999px; background: var(--ink); color: #fff; font-size: 10px; font-weight: 800; }
+    .imgs .mv { position: absolute; left: 5px; top: 5px; width: 26px; height: 26px; border-radius: 50%; background: #fff; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3); font-size: 12px; }
+    .savebar { position: sticky; bottom: calc(4.2rem + env(safe-area-inset-bottom, 0px)); display: flex; gap: 0.6rem; margin-top: 1rem; padding: 0.7rem; background: rgba(255, 255, 255, 0.92); backdrop-filter: blur(12px); border: 1px solid var(--line); border-radius: 999px; }
+    .savebar .btn { flex: 1; }
+
+    /* ---------- Editor sheet ---------- */
+    .sbg { position: fixed; inset: 0; z-index: 20; background: rgba(0, 0, 0, 0.4); opacity: 0; visibility: hidden; transition: opacity 0.3s, visibility 0.3s; }
+    .sbg.open { opacity: 1; visibility: visible; }
+    .sheet { position: fixed; z-index: 21; left: 0; right: 0; bottom: 0; max-height: 94vh; overflow-y: auto; background: var(--bg); border-radius: 22px 22px 0 0; padding: 1.2rem 1rem calc(1.5rem + env(safe-area-inset-bottom, 0px)); transform: translateY(100%); visibility: hidden; transition: transform 0.5s var(--ease), visibility 0.5s; }
+    .sheet.open { transform: none; visibility: visible; }
+    .sheet .bar2 { position: sticky; bottom: -1.5rem; display: flex; gap: 0.6rem; margin-top: 1.2rem; padding: 0.8rem 0; background: var(--bg); }
+    .sheet .bar2 .btn { flex: 1; }
+
+    .toast { position: fixed; left: 50%; bottom: calc(5.5rem + env(safe-area-inset-bottom, 0px)); z-index: 50; max-width: 90vw; padding: 0.7rem 1.3rem; border-radius: 999px; background: var(--ink); color: #fff; font-weight: 700; text-align: center; transform: translate(-50%, 160px); transition: transform 0.5s var(--ease); }
+    .toast.on { transform: translate(-50%, 0); }
+
+    @media (min-width: 640px) {
+      .stats { grid-template-columns: repeat(4, 1fr); }
+      .row2 { grid-template-columns: 1fr 1fr; }
+      .imgs { grid-template-columns: repeat(4, 1fr); }
+    }
+    @media (min-width: 900px) {
+      .nav { top: 0; bottom: auto; right: auto; width: 210px; grid-template-columns: 1fr; align-content: start; gap: 0.3rem; padding: 4.5rem 0.9rem 0; border-top: 0; border-right: 1px solid var(--line); }
+      .nav button { flex-direction: row; gap: 0.8rem; font-size: 14px; padding: 0.75rem 1rem; border-radius: 12px; min-height: 0; justify-content: flex-start; }
+      .nav button.on { background: var(--ink); color: #fff; }
+      .nav button i { position: static; margin-left: auto; }
+      .content { margin-left: 210px; }
+      main { padding-bottom: 3rem; }
+      .savebar { bottom: 1rem; }
+      .toast { bottom: 1.5rem; }
+      .sheet { left: auto; right: 0; top: 0; width: 540px; max-height: none; border-radius: 0; transform: translateX(100%); }
+      .sheet.open { transform: none; }
+      .sheet .bar2 { bottom: -1.5rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { * { transition-duration: 0.01ms !important; } }
+  </style>
+</head>
+
+<body>
+  <!-- ======================= Login ======================= -->
+  <div id="login">
+    <form class="card" id="loginForm">
+      <h1>Vintedge admin</h1>
+      <label>Email<input type="email" name="email" required autocomplete="username"></label>
+      <label>Password<input type="password" name="password" required autocomplete="current-password"></label>
+      <button class="btn" style="width:100%; margin-top:1.3rem">Sign in</button>
+      <p class="err" id="loginError"></p>
+      <p class="hint" id="loginHint"></p>
+    </form>
+  </div>
+
+  <!-- ======================= App ======================= -->
+  <div id="app" class="hide">
+    <nav class="nav" id="nav">
+      <button data-go="dashboard" class="on"><span class="ic">&#128202;</span>Dashboard</button>
+      <button data-go="orders"><span class="ic">&#128230;</span>Orders<i id="pendingBadge" class="hide">0</i></button>
+      <button data-go="products"><span class="ic">&#128085;</span>Products</button>
+      <button data-go="text"><span class="ic">&#9997;&#65039;</span>Text</button>
+      <button data-go="settings"><span class="ic">&#9881;&#65039;</span>Settings</button>
+    </nav>
+
+    <div class="content">
+      <header class="top">
+        <b id="topBrand">Vintedge</b>
+        <a href="index.html" target="_blank" rel="noopener">View site &#8599;</a>
+        <button class="ghost sm" id="logout">Log out</button>
+      </header>
+
+      <main>
+        <section id="s-dashboard" class="stack"></section>
+
+        <section id="s-orders" class="hide">
+          <div class="head"><h1>Orders</h1></div>
+          <div class="chips" id="chips"></div>
+          <div id="orderList"></div>
+        </section>
+
+        <section id="s-products" class="hide">
+          <div class="head"><h1>Products</h1><button class="btn" data-act="add">+ Add piece</button></div>
+          <input type="search" id="search" placeholder="Search by name or category" style="margin:0 0 0.9rem">
+          <div id="productList"></div>
+        </section>
+
+        <section id="s-text" class="hide">
+          <div class="head"><h1>Text</h1></div>
+          <p class="muted" style="margin-bottom:1rem">Every word on the website is edited here, including the store name.</p>
+          <div class="stack" id="textForm"></div>
+          <div class="savebar"><button class="btn" data-save>Save changes</button></div>
+        </section>
+
+        <section id="s-settings" class="hide">
+          <div class="head"><h1>Settings</h1></div>
+          <div class="stack" id="settingsForm"></div>
+          <div class="savebar"><button class="btn" data-save>Save changes</button></div>
+        </section>
+      </main>
+    </div>
+
+    <div class="sbg" id="sbg"></div>
+    <aside class="sheet" id="sheet"></aside>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    // ------------------------------------------------------------------
+    // Same credentials as index.html. Leave empty for local demo mode
+    // (password: admin123, data shared with index.html in this browser).
+    // ------------------------------------------------------------------
+    const SUPABASE_URL = "";
+    const SUPABASE_ANON_KEY = "";
+    const db = (SUPABASE_URL && window.supabase) ? supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY) : null;
+    const PHOTO_BUCKET = "photos";
+    const KEY = { settings: "vt_settings", products: "vt_products", orders: "vt_orders" };
+    const STATUSES = ["Pending", "Shipped", "Delivered", "Cancelled"];
+
+    // [section, group, key, label, type, default, hint]
+    // These defaults must match DEFAULTS in index.html.
+    const FIELDS = [
+      ["text", "Brand", "brand_name", "Store name", "text", "Vintedge"],
+      ["text", "Brand", "announcement", "Announcement bar", "text", "FREE SHIPPING ON ORDERS OVER 3000 NPR | NEW DROPS EVERY WEEK | LIMITED PIECES", "Separate phrases with the | symbol."],
+      ["text", "Brand", "footer_text", "Footer text", "text", "", "Empty shows a copyright line."],
+      ["text", "Hero", "hero_title", "Headline", "text", "Vintage, rebuilt for now."],
+      ["text", "Hero", "hero_sub", "Subtitle", "area", "Hand-picked jackets, jerseys and basics. Limited pieces. Once they're gone, they're gone."],
+      ["text", "Hero", "hero_cta_primary", "Main button", "text", "SHOP THE DROP"],
+      ["text", "Hero", "hero_cta_secondary", "Second button", "text", "OUR STORY"],
+      ["text", "Hero", "hero_image", "Background image", "image", ""],
+      ["text", "Shop section", "shop_title", "Section title", "text", "The drop"],
+      ["text", "Shop section", "in_stock_label", "In-stock label", "text", "In stock"],
+      ["text", "Shop section", "sold_out_label", "Sold-out label", "text", "Sold out"],
+      ["text", "Product popup", "add_label", "Add-to-bag button", "text", "ADD TO BAG"],
+      ["text", "Product popup", "select_size_label", "Size heading", "text", "Select size"],
+      ["text", "Story", "story_title", "Title", "text", "Our story"],
+      ["text", "Story", "story_text", "Story", "area", "Vintedge is about pieces with history. We find the jackets, jerseys and basics worth keeping, and send them to you."],
+      ["text", "Bag and checkout", "bag_title", "Bag title", "text", "Your bag"],
+      ["text", "Bag and checkout", "bag_empty", "Empty bag message", "text", "Your bag is empty. Pick a size on any piece to add it."],
+      ["text", "Bag and checkout", "checkout_label", "Checkout button", "text", "CHECKOUT"],
+      ["text", "Bag and checkout", "checkout_title", "Checkout title", "text", "Checkout"],
+      ["text", "Bag and checkout", "place_order_label", "Place-order button", "text", "PLACE ORDER"],
+      ["text", "Bag and checkout", "cod_label", "Cash-on-delivery label", "text", "Cash on delivery"],
+      ["text", "Bag and checkout", "pay_note", "Online payment note", "area", "Scan to pay, then keep the screenshot. We confirm your payment by phone."],
+      ["text", "Bag and checkout", "success_message", "Order success message", "text", "Order placed. We'll call you to confirm."],
+      ["settings", "Delivery", "delivery_default", "Default delivery charge", "number", 150, "Used for any piece without its own delivery charge."],
+      ["settings", "Delivery", "free_delivery_min", "Free delivery above", "number", 3000, "Orders at or above this subtotal ship free. Set 0 to turn off."],
+      ["settings", "Delivery", "currency", "Currency", "text", "NPR"],
+      ["settings", "Payment", "qr_url", "eSewa / Fonepay QR image", "image", ""],
+      ["settings", "Social", "instagram_url", "Instagram link", "text", ""],
+      ["settings", "Social", "tiktok_url", "TikTok link", "text", ""],
+      ["settings", "Look", "accent_color", "Button color", "color", "#ffffff"]
+    ];
+    const DEFAULTS = Object.fromEntries(FIELDS.map(f => [f[2], f[5]]));
+
+    // ------------------------------------------------------------------
+    // Helpers
+    // ------------------------------------------------------------------
+    const $ = s => document.querySelector(s);
+    const $$ = s => [...document.querySelectorAll(s)];
+    const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+    const read = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch (e) { return d; } };
+    const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+    const money = n => `${settings.currency} ${Number(n || 0).toLocaleString("en-IN")}`;
+    const shortId = id => "#" + String(id).slice(-6);
+
+    function toast(message) {
+      const el = $("#toast");
+      el.textContent = message;
+      el.classList.add("on");
+      clearTimeout(toast.t);
+      toast.t = setTimeout(() => el.classList.remove("on"), 2600);
+    }
+
+    let settings = { ...DEFAULTS }, draft = { ...DEFAULTS }, products = [], orders = [];
+    let section = "dashboard", orderFilter = "All", query = "";
+
+    // ------------------------------------------------------------------
+    // Photos: resized in the browser (transparency kept), then stored
+    // ------------------------------------------------------------------
+    function toWebp(file, maxSide) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => {
+          const k = Math.min(1, maxSide / Math.max(img.width, img.height));
+          const c = document.createElement("canvas");
+          c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          URL.revokeObjectURL(img.src);
+          resolve(c.toDataURL("image/webp", 0.85));
+        };
+        img.onerror = () => reject(new Error("Could not read that image"));
+        img.src = URL.createObjectURL(file);
+      });
+    }
+
+    async function uploadPhoto(file, maxSide = 1000) {
+      const dataUrl = await toWebp(file, maxSide);
+      if (!db) return dataUrl;                      // demo mode keeps images inside the browser
+      const blob = await (await fetch(dataUrl)).blob();
+      const path = Date.now() + "-" + Math.random().toString(36).slice(2, 8) + ".webp";
+      const { error } = await db.storage.from(PHOTO_BUCKET).upload(path, blob, { contentType: "image/webp" });
+      if (error) throw error;
+      return db.storage.from(PHOTO_BUCKET).getPublicUrl(path).data.publicUrl;
+    }
+
+    // ------------------------------------------------------------------
+    // Data layer
+    // ------------------------------------------------------------------
+    async function loadSettings() {
+      if (db) {
+        const { data } = await db.from("site_config").select("settings").eq("id", 1).maybeSingle();
+        return { ...DEFAULTS, ...((data && data.settings) || {}) };
+      }
+      return { ...DEFAULTS, ...read(KEY.settings, {}) };
+    }
+    async function saveSettings(s) {
+      if (db) { const { error } = await db.from("site_config").upsert({ id: 1, settings: s }); if (error) throw error; }
+      else write(KEY.settings, s);
+    }
+    async function loadProducts() {
+      if (db) { const { data } = await db.from("products").select("*").order("sort", { ascending: true }); return data || []; }
+      return read(KEY.products, []);
+    }
+    async function saveProduct(p) {
+      if (db) {
+        const row = { title: p.title, category: p.category, price: p.price, discount_price: p.discount_price, delivery_charge: p.delivery_charge,
+          sizes: p.sizes, description: p.description, images: p.images, in_stock: p.in_stock };
+        if (p.id) { const { error } = await db.from("products").update(row).eq("id", p.id); if (error) throw error; }
+        else {
+          row.sort = products.reduce((m, x) => Math.max(m, x.sort || 0), 0) + 10;
+          const { error } = await db.from("products").insert(row); if (error) throw error;
+        }
+        return;
+      }
+      const list = read(KEY.products, []);
+      const i = list.findIndex(x => x.id === p.id);
+      if (i >= 0) list[i] = p; else list.push({ ...p, id: Date.now(), sort: (list.length + 1) * 10 });
+      write(KEY.products, list);
+    }
+    async function removeProduct(id) {
+      if (db) { const { error } = await db.from("products").delete().eq("id", id); if (error) throw error; }
+      else write(KEY.products, read(KEY.products, []).filter(p => p.id !== id));
+    }
+    async function loadOrders() {
+      if (db) { const { data } = await db.from("orders").select("*").order("created_at", { ascending: false }); return data || []; }
+      return read(KEY.orders, []);
+    }
+    async function setOrderStatus(id, status) {
+      if (db) { const { error } = await db.from("orders").update({ status }).eq("id", id); if (error) throw error; }
+      else write(KEY.orders, read(KEY.orders, []).map(o => o.id === id ? { ...o, status } : o));
+    }
+    async function removeOrder(id) {
+      if (db) { const { error } = await db.from("orders").delete().eq("id", id); if (error) throw error; }
+      else write(KEY.orders, read(KEY.orders, []).filter(o => o.id !== id));
+    }
+
+    // ------------------------------------------------------------------
+    // Auth
+    // ------------------------------------------------------------------
+    $("#loginHint").textContent = db ? "" : "Demo mode: any email, password admin123.";
+    const signedIn = async () => db ? !!(await db.auth.getSession()).data.session : sessionStorage.getItem("vt_admin") === "1";
+
+    async function gate() {
+      const ok = await signedIn();
+      $("#login").classList.toggle("hide", ok);
+      $("#app").classList.toggle("hide", !ok);
+      if (ok) await refresh();
+    }
+
+    $("#loginForm").addEventListener("submit", async e => {
+      e.preventDefault();
+      const f = e.target;
+      $("#loginError").textContent = "";
+      if (db) {
+        const { error } = await db.auth.signInWithPassword({ email: f.email.value, password: f.password.value });
+        if (error) return ($("#loginError").textContent = error.message);
+      } else {
+        if (f.password.value !== "admin123") return ($("#loginError").textContent = "Wrong password.");
+        sessionStorage.setItem("vt_admin", "1");
+      }
+      f.reset();
+      gate();
+    });
+
+    $("#logout").addEventListener("click", async () => {
+      if (db) await db.auth.signOut(); else sessionStorage.removeItem("vt_admin");
+      gate();
+    });
+
+    // ------------------------------------------------------------------
+    // Navigation
+    // ------------------------------------------------------------------
+    function go(name) {
+      section = name;
+      $$("#nav button").forEach(b => b.classList.toggle("on", b.dataset.go === name));
+      ["dashboard", "orders", "products", "text", "settings"].forEach(s => $("#s-" + s).classList.toggle("hide", s !== name));
+      render();
+      scrollTo({ top: 0 });
+    }
+    $("#nav").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); });
+
+    function render() {
+      $("#topBrand").textContent = settings.brand_name + " admin";
+      const pending = orders.filter(o => o.status === "Pending").length;
+      $("#pendingBadge").textContent = pending;
+      $("#pendingBadge").classList.toggle("hide", !pending);
+      if (section === "dashboard") renderDashboard();
+      if (section === "orders") renderOrders();
+      if (section === "products") renderProducts();
+      if (section === "text" || section === "settings") renderForms();
+    }
+
+    // ------------------------------------------------------------------
+    // Dashboard
+    // ------------------------------------------------------------------
+    function renderDashboard() {
+      const live = orders.filter(o => o.status !== "Cancelled");
+      const revenue = live.reduce((s, o) => s + Number(o.total || 0), 0);
+      const pending = orders.filter(o => o.status === "Pending").length;
+      const soldOut = products.filter(p => !p.in_stock).length;
+
+      const days = [...Array(7)].map((_, i) => { const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - (6 - i)); return d; });
+      const counts = days.map(d => orders.filter(o => new Date(o.created_at).toDateString() === d.toDateString()).length);
+      const max = Math.max(1, ...counts);
+
+      const recent = orders.slice(0, 5).map(o => `
+        <div class="recent"><div><b>${esc(o.customer_name)}</b><div class="muted">${shortId(o.id)} &middot; ${money(o.total)}</div></div>
+        <span class="st ${esc(o.status)}">${esc(o.status)}</span></div>`).join("") || `<p class="muted" style="padding:1rem 0">No orders yet.</p>`;
+
+      $("#s-dashboard").innerHTML = `
+        <div class="head" style="margin-bottom:0"><h1>Dashboard</h1></div>
+        <div class="stats">
+          <div class="card stat"><small>Revenue</small><b>${money(revenue)}</b></div>
+          <div class="card stat"><small>Orders</small><b>${orders.length}</b></div>
+          <div class="card stat ${pending ? "alert" : ""}"><small>Pending</small><b>${pending}</b></div>
+          <div class="card stat"><small>Pieces live</small><b>${products.length - soldOut}<span class="muted" style="font-size:14px"> / ${products.length}</span></b></div>
+        </div>
+        <div class="card"><h3>Orders, last 7 days</h3>
+          <div class="chart">${days.map((d, i) => `<div class="bar"><b>${counts[i] || ""}</b><div style="height:${(counts[i] / max) * 72}%"></div>${d.toLocaleDateString(undefined, { weekday: "short" })}</div>`).join("")}</div>
+        </div>
+        <div class="card"><div class="head" style="margin:0"><h3>Recent orders</h3><button class="ghost sm" data-go="orders">View all</button></div>${recent}</div>
+        ${soldOut ? `<div class="card"><h3>Sold out</h3><p class="muted" style="margin-top:0.4rem">${products.filter(p => !p.in_stock).map(p => esc(p.title)).join(", ")}</p></div>` : ""}`;
+    }
+    $("#s-dashboard").addEventListener("click", e => { const b = e.target.closest("[data-go]"); if (b) go(b.dataset.go); });
+
+    // ------------------------------------------------------------------
+    // Orders
+    // ------------------------------------------------------------------
+    function renderOrders() {
+      const count = s => s === "All" ? orders.length : orders.filter(o => o.status === s).length;
+      $("#chips").innerHTML = ["All", ...STATUSES].map(s => `<button data-f="${s}" class="${s === orderFilter ? "on" : ""}">${s} ${count(s)}</button>`).join("");
+      const list = orders.filter(o => orderFilter === "All" || o.status === orderFilter);
+      $("#orderList").innerHTML = list.map(o => `
+        <div class="card order">
+          <div class="oh"><b>${shortId(o.id)}</b><span class="st ${esc(o.status)}">${esc(o.status)}</span><span class="muted">${new Date(o.created_at).toLocaleString()}</span></div>
+          <div style="margin-top:0.5rem"><b>${esc(o.customer_name)}</b> &middot; <a href="tel:${esc(o.phone)}">${esc(o.phone)}</a></div>
+          <div class="muted">${esc(o.address)}</div>
+          <ul>${(o.items || []).map(i => `<li><span>${esc(i.qty)} &times; ${esc(i.title)}${i.size ? " (" + esc(i.size) + ")" : ""}</span><span>${money(i.price * i.qty)}</span></li>`).join("")}</ul>
+          <div class="muted">Items ${money(o.subtotal)} + delivery ${money(o.delivery_fee)} &middot; ${esc(o.payment)}</div>
+          <div style="font-size:18px; font-weight:800; margin-top:0.2rem">${money(o.total)}</div>
+          <div class="oa">
+            <select data-status="${o.id}" aria-label="Order status">${STATUSES.map(s => `<option ${s === o.status ? "selected" : ""}>${s}</option>`).join("")}</select>
+            <button class="ghost sm danger" data-del-order="${o.id}">Delete</button>
+          </div>
+        </div>`).join("") || `<div class="card muted" style="text-align:center; padding:2.5rem 1rem">No ${orderFilter === "All" ? "" : orderFilter.toLowerCase() + " "}orders.</div>`;
+    }
+
+    $("#chips").addEventListener("click", e => { const b = e.target.closest("[data-f]"); if (b) { orderFilter = b.dataset.f; renderOrders(); } });
+
+    $("#orderList").addEventListener("change", async e => {
+      if (!e.target.dataset.status) return;
+      const id = isNaN(e.target.dataset.status) ? e.target.dataset.status : Number(e.target.dataset.status);
+      try { await setOrderStatus(id, e.target.value); toast("Marked " + e.target.value.toLowerCase()); await refresh(); }
+      catch (err) { toast(err.message); }
+    });
+
+    $("#orderList").addEventListener("click", async e => {
+      const b = e.target.closest("[data-del-order]");
+      if (!b || !confirm("Delete this order for good?")) return;
+      const id = isNaN(b.dataset.delOrder) ? b.dataset.delOrder : Number(b.dataset.delOrder);
+      try { await removeOrder(id); toast("Order deleted"); await refresh(); } catch (err) { toast(err.message); }
+    });
+
+    // ------------------------------------------------------------------
+    // Products
+    // ------------------------------------------------------------------
+    function renderProducts() {
+      const q = query.trim().toLowerCase();
+      const list = products.filter(p => !q || (p.title + " " + p.category).toLowerCase().includes(q));
+      $("#productList").innerHTML = list.map(p => `
+        <div class="card piece">
+          <div class="thumb">${p.images && p.images[0] ? `<img src="${esc(p.images[0])}" alt="">` : ""}</div>
+          <div class="pinfo"><b>${esc(p.title)}</b>
+            <small>${esc(p.category)} &middot; ${(p.sizes || []).join(", ") || "no sizes"}</small>
+            <small>${money(p.discount_price || p.price)}${p.discount_price ? " (was " + money(p.price) + ")" : ""} &middot; delivery ${p.delivery_charge == null ? "default" : money(p.delivery_charge)}</small></div>
+          <div class="seg">
+            <button data-stock="${p.id}" data-v="1" class="${p.in_stock ? "on" : ""}">Available</button>
+            <button data-stock="${p.id}" data-v="0" class="${p.in_stock ? "" : "on so"}">Sold out</button>
+          </div>
+          <div class="pa"><button class="ghost sm" data-edit="${p.id}">Edit</button><button class="ghost sm danger" data-del="${p.id}">Remove</button></div>
+        </div>`).join("") || `<div class="card muted" style="text-align:center; padding:2.5rem 1rem">${products.length ? "No match." : "No pieces yet. Add your first one, or open index.html once to load the samples."}</div>`;
+    }
+
+    $("#search").addEventListener("input", e => { query = e.target.value; renderProducts(); });
+    const pid = v => isNaN(v) ? v : Number(v);
+    const byId = id => products.find(p => p.id === pid(id));
+
+    $("#productList").addEventListener("click", async e => {
+      const t = e.target.closest("button");
+      if (!t) return;
+      try {
+        if (t.dataset.edit) return openEditor(byId(t.dataset.edit));
+        if (t.dataset.stock) {
+          const p = byId(t.dataset.stock);
+          p.in_stock = t.dataset.v === "1";
+          await saveProduct(p);
+          toast(p.in_stock ? "Marked available" : "Marked sold out");
+          await refresh();
+        }
+        if (t.dataset.del) {
+          const p = byId(t.dataset.del);
+          if (!confirm(`Remove "${p.title}" from the store?`)) return;
+          await removeProduct(p.id);
+          toast("Removed");
+          await refresh();
+        }
+      } catch (err) { toast(err.message); }
+    });
+    document.addEventListener("click", e => { if (e.target.closest("[data-act='add']")) openEditor(null); });
+
+    // ------------------------------------------------------------------
+    // Product editor
+    // ------------------------------------------------------------------
+    let ed = null;
+
+    function openEditor(p) {
+      ed = p ? JSON.parse(JSON.stringify(p))
+        : { id: null, title: "", category: "", price: "", discount_price: null, delivery_charge: null, sizes: ["S", "M", "L", "XL"], description: "", images: [], in_stock: true };
+      renderEditor();
+      $("#sheet").classList.add("open");
+      $("#sbg").classList.add("open");
+    }
+    function closeEditor() { $("#sheet").classList.remove("open"); $("#sbg").classList.remove("open"); }
+
+    function renderEditor() {
+      const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
+      $("#sheet").innerHTML = `
+        <h1>${ed.id ? "Edit piece" : "Add piece"}</h1>
+        <label>Name<input type="text" data-e="title" value="${esc(ed.title)}" placeholder="Red Wool Varsity Jacket"></label>
+        <label>Category<input type="text" data-e="category" list="cats" value="${esc(ed.category)}" placeholder="Jackets"></label>
+        <datalist id="cats">${cats.map(c => `<option value="${esc(c)}">`).join("")}</datalist>
+        <div class="row2">
+          <label>Price (${esc(settings.currency)})<input type="number" min="0" inputmode="numeric" data-e="price" value="${esc(ed.price)}"></label>
+          <label>Discount price (optional)<input type="number" min="0" inputmode="numeric" data-e="discount_price" value="${esc(ed.discount_price ?? "")}"></label>
+        </div>
+        <label>Delivery charge for this piece<input type="number" min="0" inputmode="numeric" data-e="delivery_charge" value="${esc(ed.delivery_charge ?? "")}" placeholder="Empty = default (${esc(settings.delivery_default)})"></label>
+        <label>Sizes (comma separated)<input type="text" data-e="sizes" value="${esc((ed.sizes || []).join(", "))}" placeholder="S, M, L, XL"></label>
+        <label>Description<textarea rows="3" data-e="description">${esc(ed.description)}</textarea></label>
+        <label class="check" style="margin-top:1.1rem"><input type="checkbox" data-e="in_stock" ${ed.in_stock ? "checked" : ""}> Available (untick for sold out)</label>
+
+        <label>Photos (first one is the main photo)</label>
+        <div class="imgs">
+          ${ed.images.map((u, i) => `<div class="ib"><div class="slot" style="cursor:default"><img src="${esc(u)}" alt=""></div>
+            ${i === 0 ? `<span class="main">Main</span>` : `<button class="mv" data-mv="${i}" aria-label="Make main">&#8598;</button>`}
+            <button class="x" data-rmimg="${i}" aria-label="Remove photo">&#10005;</button></div>`).join("")}
+          <div class="ib"><label class="slot" style="margin:0"><input type="file" accept="image/*" multiple hidden data-addimg>+</label></div>
+        </div>
+        <p class="hint">Transparent PNG or WebP cutouts look best. Photos are resized automatically.</p>
+
+        <div class="bar2"><button class="btn" data-esave>Save piece</button><button class="ghost" data-ecancel>Cancel</button></div>`;
+    }
+
+    $("#sheet").addEventListener("input", e => {
+      const k = e.target.dataset.e;
+      if (!k) return;
+      if (e.target.type === "checkbox") ed[k] = e.target.checked;
+      else if (k === "price" || k === "discount_price" || k === "delivery_charge") ed[k] = e.target.value === "" ? null : Number(e.target.value);
+      else if (k === "sizes") ed.sizes = e.target.value.split(",").map(s => s.trim()).filter(Boolean);
+      else ed[k] = e.target.value;
+    });
+
+    $("#sheet").addEventListener("change", async e => {
+      if (e.target.dataset.addimg === undefined) return;
+      try {
+        toast("Uploading…");
+        for (const file of e.target.files) ed.images.push(await uploadPhoto(file));
+        renderEditor();
+        toast("Photo added");
+      } catch (err) { toast(err.message); }
+    });
+
+    $("#sheet").addEventListener("click", async e => {
+      const t = e.target.closest("button");
+      if (!t) return;
+      if (t.dataset.ecancel !== undefined) return closeEditor();
+      if (t.dataset.rmimg !== undefined) { ed.images.splice(+t.dataset.rmimg, 1); return renderEditor(); }
+      if (t.dataset.mv !== undefined) { const [m] = ed.images.splice(+t.dataset.mv, 1); ed.images.unshift(m); return renderEditor(); }
+      if (t.dataset.esave !== undefined) {
+        if (!ed.title.trim()) return toast("Give the piece a name");
+        if (!(Number(ed.price) > 0)) return toast("Add a price");
+        if (!ed.images.length) return toast("Add at least one photo");
+        try {
+          await saveProduct({ ...ed, title: ed.title.trim(), category: (ed.category || "").trim() || "Other" });
+          closeEditor();
+          toast("Saved. The site is updated.");
+          await refresh();
+        } catch (err) { toast(err.message); }
+      }
+    });
+    $("#sbg").addEventListener("click", closeEditor);
+
+    // ------------------------------------------------------------------
+    // Text + Settings forms (generated from FIELDS)
+    // ------------------------------------------------------------------
+    function fieldHtml([, , key, label, type, , hint]) {
+      const v = draft[key];
+      let input;
+      if (type === "area") input = `<textarea rows="3" data-k="${key}">${esc(v)}</textarea>`;
+      else if (type === "number") input = `<input type="number" min="0" inputmode="numeric" data-k="${key}" value="${esc(v)}">`;
+      else if (type === "color") input = `<br><input type="color" data-k="${key}" value="${esc(v || "#ffffff")}">`;
+      else if (type === "image") input = `<div class="slotbox"><label class="slot"><input type="file" accept="image/*" hidden data-img="${key}">${v ? `<img src="${esc(v)}" alt="">` : "+"}</label>${v ? `<button class="x" data-clear="${key}" aria-label="Remove image">&#10005;</button>` : ""}</div>`;
+      else input = `<input type="text" data-k="${key}" value="${esc(v)}">`;
+      if (type === "image") return `<div style="margin-top:1rem"><div class="lbl">${esc(label)}</div>${input}</div>`;
+      return `<label>${esc(label)}${input}${hint ? `<div class="hint">${esc(hint)}</div>` : ""}</label>`;
+    }
+
+    function formHtml(sectionName) {
+      const groups = [];
+      FIELDS.filter(f => f[0] === sectionName).forEach(f => {
+        let g = groups.find(x => x.name === f[1]);
+        if (!g) groups.push(g = { name: f[1], fields: [] });
+        g.fields.push(f);
+      });
+      return groups.map(g => `<div class="card"><h3>${esc(g.name)}</h3>${g.fields.map(fieldHtml).join("")}</div>`).join("");
+    }
+
+    function renderForms() {
+      if (section === "text") $("#textForm").innerHTML = formHtml("text");
+      if (section === "settings") $("#settingsForm").innerHTML = formHtml("settings");
+    }
+
+    document.addEventListener("input", e => {
+      const k = e.target.dataset.k;
+      if (!k) return;
+      draft[k] = e.target.type === "number" ? (e.target.value === "" ? 0 : Number(e.target.value)) : e.target.value;
+    });
+
+    document.addEventListener("change", async e => {
+      const key = e.target.dataset.img;
+      if (!key || !e.target.files[0]) return;
+      try { toast("Uploading…"); draft[key] = await uploadPhoto(e.target.files[0], 1800); renderForms(); toast("Image added. Remember to save."); }
+      catch (err) { toast(err.message); }
+    });
+
+    document.addEventListener("click", async e => {
+      const clear = e.target.closest("[data-clear]");
+      if (clear) { draft[clear.dataset.clear] = ""; return renderForms(); }
+      if (!e.target.closest("[data-save]")) return;
+      try {
+        await saveSettings(draft);
+        settings = { ...draft };
+        toast("Saved. The site is updated.");
+        render();
+      } catch (err) { toast(err.message); }
+    });
+
+    // ------------------------------------------------------------------
+    // Boot + live refresh of orders
+    // ------------------------------------------------------------------
+    async function refresh() {
+      [settings, products, orders] = await Promise.all([loadSettings(), loadProducts(), loadOrders()]);
+      draft = { ...settings };
+      render();
+    }
+
+    setInterval(async () => {
+      if ($("#app").classList.contains("hide") || $("#sheet").classList.contains("open")) return;
+      if (document.activeElement && ["SELECT", "INPUT", "TEXTAREA"].includes(document.activeElement.tagName)) return;
+      orders = await loadOrders();
+      if (section === "dashboard" || section === "orders") render();
+    }, 8000);
+
+    window.addEventListener("storage", async () => {
+      if (!$("#app").classList.contains("hide") && !$("#sheet").classList.contains("open")) { orders = await loadOrders(); products = await loadProducts(); render(); }
+    });
+
+    gate();
+  </script>
+</body>
+</html>
